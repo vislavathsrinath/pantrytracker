@@ -3,10 +3,9 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Box, Modal, Stack, TextField, Typography, Button, InputAdornment, AppBar, Toolbar, Container, Grid } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import { auth, firestore } from '@/firebase'; // Ensure firebase initialization is correct
+import { auth, firestore } from '@/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, getDocs, query, doc, deleteDoc, getDoc, setDoc } from 'firebase/firestore';
-import { getAnalytics, isSupported } from 'firebase/analytics'; // Import necessary Firebase Analytics functions
 
 // Image map for pantry items
 const imageMap = {
@@ -36,6 +35,7 @@ const imageMap = {
 const backgrounds = [
   '/images/backgroundimage.jpg',
   '/images/backgroundimage2.jpg',
+
   // Add more background images as needed
 ];
 
@@ -56,7 +56,6 @@ export default function Home() {
   const [filteredInventory, setFilteredInventory] = useState([]);
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openRemoveModal, setOpenRemoveModal] = useState(false);
-  const [analytics, setAnalytics] = useState(null);
 
   // Update inventory list from Firestore
   const updateInventory = async () => {
@@ -117,19 +116,6 @@ export default function Home() {
     );
     setFilteredInventory(filtered);
   }, [searchQuery, inventory]);
-
-  useEffect(() => {
-    const initializeAnalytics = async () => {
-      if (typeof window !== 'undefined') {
-        const supported = await isSupported();
-        if (supported) {
-          const analytics = getAnalytics();
-          setAnalytics(analytics);
-        }
-      }
-    };
-    initializeAnalytics();
-  }, []);
 
   // Handle authentication submit
   const handleAuthSubmit = async () => {
@@ -231,95 +217,149 @@ export default function Home() {
           gap={2}
           sx={{ marginTop: 4, backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: 2, borderRadius: 2 }}
         >
-          <TextField
-            label="Search Inventory"
-            variant="outlined"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Grid container spacing={2} marginTop={2}>
-            {filteredInventory.map((item) => (
-              <Grid item xs={12} sm={6} md={4} key={item.name}>
+          <Stack
+            direction="row"
+            spacing={2}
+            alignItems="center"
+            justifyContent="center"
+            sx={{ width: '100%', marginBottom: 2 }}
+          >
+            <Button variant="contained" color="primary" onClick={() => setOpenAddModal(true)}>
+              Add New Item
+            </Button>
+            <Button variant="contained" color="primary" onClick={() => setOpenRemoveModal(true)}>
+              Remove Item
+            </Button>
+            <TextField
+              variant="outlined"
+              label="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Stack>
+
+          <Grid container spacing={2} sx={{ maxWidth: 'lg' }}>
+            {filteredInventory.map(item => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={item.name}>
                 <Box
                   display="flex"
                   flexDirection="column"
                   alignItems="center"
-                  sx={{ backgroundColor: '#fff', borderRadius: 2, padding: 2, boxShadow: 3 }}
+                  sx={{
+                    border: '1px solid #ccc',
+                    borderRadius: 2,
+                    padding: 2,
+                    backgroundColor: 'white',
+                    boxShadow: 3
+                  }}
                 >
                   <Image
                     src={imageMap[item.name.toLowerCase()] || '/images/placeholder.jpeg'}
                     alt={item.name}
                     width={200}
                     height={200}
-                    style={{ borderRadius: '8px' }}
+                    style={{ borderRadius: 8 }}
                   />
-                  <Typography variant="h6" sx={{ marginTop: 1 }}>
-                    {item.name.charAt(0).toUpperCase() + item.name.slice(1)}
-                  </Typography>
-                  <Typography variant="body1">
-                    Quantity: {item.quantity}
-                  </Typography>
+                  <Typography variant="h6">{item.name}</Typography>
+                  <Typography variant="body1">Quantity: {item.quantity}</Typography>
                 </Box>
               </Grid>
             ))}
           </Grid>
-          <Box display="flex" gap={2} marginTop={2}>
-            <Button variant="contained" color="primary" onClick={() => setOpenAddModal(true)}>
-              Add Item
-            </Button>
-            <Button variant="contained" color="secondary" onClick={() => setOpenRemoveModal(true)}>
-              Remove Item
-            </Button>
-          </Box>
         </Box>
       )}
 
-      {/* Add Item Modal */}
-      <Modal open={openAddModal} onClose={handleCloseModal}>
+      <Modal open={openAuthModal} onClose={handleCloseModal}>
         <Box
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          justifyContent="center"
           sx={{
-            width: '80vw',
-            maxWidth: '500px',
-            height: '50vh',
-            backgroundColor: '#fff',
+            width: '90%',
+            maxWidth: 400,
             margin: 'auto',
+            marginTop: '10%',
+            padding: 4,
+            backgroundColor: 'white',
             borderRadius: 2,
-            padding: 2,
             boxShadow: 3,
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)'
           }}
         >
-          <Typography variant="h6" gutterBottom>Add Item to Inventory</Typography>
+          <Typography variant="h5" gutterBottom>
+            {authMode === 'signin' ? 'Sign In' : 'Sign Up'}
+          </Typography>
+          {authError && <Typography color="error">{authError}</Typography>}
           <TextField
-            label="Item Name"
-            variant="outlined"
-            value={itemName}
-            onChange={(e) => setItemName(e.target.value)}
             fullWidth
             margin="normal"
+            label="Email"
+            type="email"
+            value={authData.email}
+            onChange={(e) => setAuthData({ ...authData, email: e.target.value })}
           />
           <TextField
-            label="Quantity"
-            type="number"
-            variant="outlined"
-            value={itemQuantity}
-            onChange={(e) => setItemQuantity(Number(e.target.value))}
             fullWidth
             margin="normal"
+            label="Password"
+            type="password"
+            value={authData.password}
+            onChange={(e) => setAuthData({ ...authData, password: e.target.value })}
+          />
+          {authMode === 'signup' && (
+            <TextField
+              fullWidth
+              margin="normal"
+              label="Confirm Password"
+              type="password"
+              value={authData.confirmPassword}
+              onChange={(e) => setAuthData({ ...authData, confirmPassword: e.target.value })}
+            />
+          )}
+          <Box display="flex" gap={2} marginTop={2}>
+            <Button variant="contained" color="primary" onClick={handleAuthSubmit}>
+              {authMode === 'signin' ? 'Sign In' : 'Sign Up'}
+            </Button>
+            <Button variant="outlined" color="secondary" onClick={() => { setAuthMode(authMode === 'signin' ? 'signup' : 'signin'); }}>
+              {authMode === 'signin' ? 'Switch to Sign Up' : 'Switch to Sign In'}
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      <Modal open={openAddModal} onClose={handleCloseModal}>
+        <Box
+          sx={{
+            width: '90%',
+            maxWidth: 400,
+            margin: 'auto',
+            marginTop: '10%',
+            padding: 4,
+            backgroundColor: 'white',
+            borderRadius: 2,
+            boxShadow: 3,
+          }}
+        >
+          <Typography variant="h6" gutterBottom>
+            Add New Item
+          </Typography>
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Item Name"
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
+          />
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Quantity"
+            type="number"
+            value={itemQuantity}
+            onChange={(e) => setItemQuantity(Number(e.target.value))}
           />
           <Button
             variant="contained"
@@ -328,133 +368,52 @@ export default function Home() {
               addItem(itemName, itemQuantity);
               handleCloseModal();
             }}
-            sx={{ marginTop: 2 }}
           >
             Add Item
           </Button>
         </Box>
       </Modal>
 
-      {/* Remove Item Modal */}
       <Modal open={openRemoveModal} onClose={handleCloseModal}>
         <Box
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          justifyContent="center"
           sx={{
-            width: '80vw',
-            maxWidth: '500px',
-            height: '50vh',
-            backgroundColor: '#fff',
+            width: '90%',
+            maxWidth: 400,
             margin: 'auto',
+            marginTop: '10%',
+            padding: 4,
+            backgroundColor: 'white',
             borderRadius: 2,
-            padding: 2,
             boxShadow: 3,
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)'
           }}
         >
-          <Typography variant="h6" gutterBottom>Remove Item from Inventory</Typography>
+          <Typography variant="h6" gutterBottom>
+            Remove Item
+          </Typography>
           <TextField
+            fullWidth
+            margin="normal"
             label="Item Name"
-            variant="outlined"
             value={itemName}
             onChange={(e) => setItemName(e.target.value)}
-            fullWidth
-            margin="normal"
           />
           <TextField
-            label="Quantity to Remove"
-            type="number"
-            variant="outlined"
-            value={removeQuantity}
-            onChange={(e) => setRemoveQuantity(Number(e.target.value))}
             fullWidth
             margin="normal"
+            label="Quantity to Remove"
+            type="number"
+            value={removeQuantity}
+            onChange={(e) => setRemoveQuantity(Number(e.target.value))}
           />
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             onClick={() => {
               removeItem(itemName, removeQuantity);
               handleCloseModal();
             }}
-            sx={{ marginTop: 2 }}
           >
             Remove Item
-          </Button>
-        </Box>
-      </Modal>
-
-      {/* Authentication Modal */}
-      <Modal open={openAuthModal} onClose={handleCloseModal}>
-        <Box
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          justifyContent="center"
-          sx={{
-            width: '80vw',
-            maxWidth: '500px',
-            height: '50vh',
-            backgroundColor: '#fff',
-            margin: 'auto',
-            borderRadius: 2,
-            padding: 2,
-            boxShadow: 3,
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)'
-          }}
-        >
-          <Typography variant="h6" gutterBottom>
-            {authMode === 'signin' ? 'Sign In' : 'Sign Up'}
-          </Typography>
-          <TextField
-            label="Email"
-            type="email"
-            variant="outlined"
-            value={authData.email}
-            onChange={(e) => setAuthData({ ...authData, email: e.target.value })}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="Password"
-            type="password"
-            variant="outlined"
-            value={authData.password}
-            onChange={(e) => setAuthData({ ...authData, password: e.target.value })}
-            fullWidth
-            margin="normal"
-          />
-          {authMode === 'signup' && (
-            <TextField
-              label="Confirm Password"
-              type="password"
-              variant="outlined"
-              value={authData.confirmPassword}
-              onChange={(e) => setAuthData({ ...authData, confirmPassword: e.target.value })}
-              fullWidth
-              margin="normal"
-            />
-          )}
-          {authError && (
-            <Typography color="error" variant="body2" sx={{ marginTop: 1 }}>
-              {authError}
-            </Typography>
-          )}
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleAuthSubmit}
-            sx={{ marginTop: 2 }}
-          >
-            {authMode === 'signin' ? 'Sign In' : 'Sign Up'}
           </Button>
         </Box>
       </Modal>
