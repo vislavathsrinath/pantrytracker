@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Box, Modal, Stack, TextField, Typography, Button, InputAdornment, AppBar, Toolbar, Container, Grid } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import { auth, firestore } from '@/firebase';
+import { auth, firestore } from '@/firebase'; // Ensure firebase initialization is correct
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, getDocs, query, doc, deleteDoc, getDoc, setDoc } from 'firebase/firestore';
+import { getAnalytics, isSupported } from 'firebase/analytics'; // Import necessary Firebase Analytics functions
 
 // Image map for pantry items
 const imageMap = {
@@ -35,7 +36,6 @@ const imageMap = {
 const backgrounds = [
   '/images/backgroundimage.jpg',
   '/images/backgroundimage2.jpg',
-
   // Add more background images as needed
 ];
 
@@ -56,6 +56,7 @@ export default function Home() {
   const [filteredInventory, setFilteredInventory] = useState([]);
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openRemoveModal, setOpenRemoveModal] = useState(false);
+  const [analytics, setAnalytics] = useState(null);
 
   // Update inventory list from Firestore
   const updateInventory = async () => {
@@ -116,6 +117,19 @@ export default function Home() {
     );
     setFilteredInventory(filtered);
   }, [searchQuery, inventory]);
+
+  useEffect(() => {
+    const initializeAnalytics = async () => {
+      if (typeof window !== 'undefined') {
+        const supported = await isSupported();
+        if (supported) {
+          const analytics = getAnalytics();
+          setAnalytics(analytics);
+        }
+      }
+    };
+    initializeAnalytics();
+  }, []);
 
   // Handle authentication submit
   const handleAuthSubmit = async () => {
@@ -211,152 +225,111 @@ export default function Home() {
         </Container>
       ) : (
         <Box
-  display="flex"
-  flexDirection="column"
-  alignItems="center"
-  gap={2}
-  sx={{ marginTop: 4, backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: 2, borderRadius: 2 }}
->
-  <Stack
-    direction="row"
-    spacing={2}
-    alignItems="center"
-    justifyContent="center"
-    sx={{ width: '100%', marginBottom: 2 }}
-  >
-    <Button variant="contained" color="primary" onClick={() => setOpenAddModal(true)}>
-      Add New Item
-    </Button>
-    <Button variant="contained" color="primary" onClick={() => setOpenRemoveModal(true)}>
-      Remove Item
-    </Button>
-    <TextField
-      variant="outlined"
-      label="Search..."
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      InputProps={{
-        endAdornment: (
-          <InputAdornment position="end">
-            <SearchIcon />
-          </InputAdornment>
-        ),
-      }}
-    />
-  </Stack>
-
-  <Grid container spacing={2} sx={{ maxWidth: '1200px' }}>
-    {filteredInventory.map((item, index) => (
-      <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
-        <Box
-          display="flex"
-          flexDirection="row"
-          alignItems="center"
-          sx={{
-            backgroundColor: '#f5f5f5',
-            padding: 2,
-            borderRadius: 1,
-            boxShadow: 1,
-            width: '100%',
-            minWidth: '120px', // Adjust as needed
-          }}
-        >
-          <Image
-            src={imageMap[item.name.toLowerCase()] || '/placeholder.jpeg'}
-            alt={item.name}
-            width={80} // Adjust size as needed
-            height={80} // Adjust size as needed
-          />
-          <Typography variant="body2" sx={{ marginTop: 1 }}>{item.name}</Typography>
-          <Typography variant="body2">{item.quantity}</Typography>
-        </Box>
-      </Grid>
-    ))}
-  </Grid>
-</Box>
-      )}
-
-      {/* Authentication Modal */}
-      <Modal open={openAuthModal} onClose={handleCloseModal}>
-        <Box
-          position="absolute"
-          top="50%"
-          left="50%"
-          bgcolor="background.paper"
-          border="2px solid #000"
-          boxShadow={24}
-          p={4}
           display="flex"
           flexDirection="column"
-          gap={3}
-          sx={{ transform: 'translate(-50%, -50%)' }}
+          alignItems="center"
+          gap={2}
+          sx={{ marginTop: 4, backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: 2, borderRadius: 2 }}
         >
-          <Typography variant="h6">{authMode === 'signup' ? 'Sign Up' : 'Sign In'}</Typography>
           <TextField
+            label="Search Inventory"
             variant="outlined"
-            fullWidth
-            label="Email"
-            type="email"
-            value={authData.email}
-            onChange={(e) => setAuthData({ ...authData, email: e.target.value })}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
           />
-          <TextField
-            variant="outlined"
-            fullWidth
-            label="Password"
-            type="password"
-            value={authData.password}
-            onChange={(e) => setAuthData({ ...authData, password: e.target.value })}
-          />
-          {authMode === 'signup' && (
-            <TextField
-              variant="outlined"
-              fullWidth
-              label="Confirm Password"
-              type="password"
-              value={authData.confirmPassword}
-              onChange={(e) => setAuthData({ ...authData, confirmPassword: e.target.value })}
-            />
-          )}
-          {authError && <Typography color="error">{authError}</Typography>}
-          <Button variant="contained" color="primary" onClick={handleAuthSubmit}>
-            {authMode === 'signup' ? 'Create Account' : 'Sign In'}
-          </Button>
+          <Grid container spacing={2} marginTop={2}>
+            {filteredInventory.map((item) => (
+              <Grid item xs={12} sm={6} md={4} key={item.name}>
+                <Box
+                  display="flex"
+                  flexDirection="column"
+                  alignItems="center"
+                  sx={{ backgroundColor: '#fff', borderRadius: 2, padding: 2, boxShadow: 3 }}
+                >
+                  <Image
+                    src={imageMap[item.name.toLowerCase()] || '/images/placeholder.jpeg'}
+                    alt={item.name}
+                    width={200}
+                    height={200}
+                    style={{ borderRadius: '8px' }}
+                  />
+                  <Typography variant="h6" sx={{ marginTop: 1 }}>
+                    {item.name.charAt(0).toUpperCase() + item.name.slice(1)}
+                  </Typography>
+                  <Typography variant="body1">
+                    Quantity: {item.quantity}
+                  </Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+          <Box display="flex" gap={2} marginTop={2}>
+            <Button variant="contained" color="primary" onClick={() => setOpenAddModal(true)}>
+              Add Item
+            </Button>
+            <Button variant="contained" color="secondary" onClick={() => setOpenRemoveModal(true)}>
+              Remove Item
+            </Button>
+          </Box>
         </Box>
-      </Modal>
+      )}
 
       {/* Add Item Modal */}
       <Modal open={openAddModal} onClose={handleCloseModal}>
         <Box
-          position="absolute"
-          top="50%"
-          left="50%"
-          bgcolor="background.paper"
-          border="2px solid #000"
-          boxShadow={24}
-          p={4}
           display="flex"
           flexDirection="column"
-          gap={3}
-          sx={{ transform: 'translate(-50%, -50%)' }}
+          alignItems="center"
+          justifyContent="center"
+          sx={{
+            width: '80vw',
+            maxWidth: '500px',
+            height: '50vh',
+            backgroundColor: '#fff',
+            margin: 'auto',
+            borderRadius: 2,
+            padding: 2,
+            boxShadow: 3,
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
         >
-          <Typography variant="h6">Add New Item</Typography>
+          <Typography variant="h6" gutterBottom>Add Item to Inventory</Typography>
           <TextField
-            variant="outlined"
-            fullWidth
             label="Item Name"
+            variant="outlined"
             value={itemName}
             onChange={(e) => setItemName(e.target.value)}
+            fullWidth
+            margin="normal"
           />
           <TextField
-            variant="outlined"
-            fullWidth
             label="Quantity"
             type="number"
+            variant="outlined"
             value={itemQuantity}
-            onChange={(e) => setItemQuantity(parseInt(e.target.value, 10))}
+            onChange={(e) => setItemQuantity(Number(e.target.value))}
+            fullWidth
+            margin="normal"
           />
-          <Button variant="contained" color="primary" onClick={() => addItem(itemName, itemQuantity)}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => {
+              addItem(itemName, itemQuantity);
+              handleCloseModal();
+            }}
+            sx={{ marginTop: 2 }}
+          >
             Add Item
           </Button>
         </Box>
@@ -365,36 +338,123 @@ export default function Home() {
       {/* Remove Item Modal */}
       <Modal open={openRemoveModal} onClose={handleCloseModal}>
         <Box
-          position="absolute"
-          top="50%"
-          left="50%"
-          bgcolor="background.paper"
-          border="2px solid #000"
-          boxShadow={24}
-          p={4}
           display="flex"
           flexDirection="column"
-          gap={3}
-          sx={{ transform: 'translate(-50%, -50%)' }}
+          alignItems="center"
+          justifyContent="center"
+          sx={{
+            width: '80vw',
+            maxWidth: '500px',
+            height: '50vh',
+            backgroundColor: '#fff',
+            margin: 'auto',
+            borderRadius: 2,
+            padding: 2,
+            boxShadow: 3,
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
         >
-          <Typography variant="h6">Remove Item</Typography>
+          <Typography variant="h6" gutterBottom>Remove Item from Inventory</Typography>
           <TextField
-            variant="outlined"
-            fullWidth
             label="Item Name"
+            variant="outlined"
             value={itemName}
             onChange={(e) => setItemName(e.target.value)}
+            fullWidth
+            margin="normal"
           />
           <TextField
-            variant="outlined"
-            fullWidth
-            label="Quantity"
+            label="Quantity to Remove"
             type="number"
+            variant="outlined"
             value={removeQuantity}
-            onChange={(e) => setRemoveQuantity(parseInt(e.target.value, 10))}
+            onChange={(e) => setRemoveQuantity(Number(e.target.value))}
+            fullWidth
+            margin="normal"
           />
-          <Button variant="contained" color="primary" onClick={() => removeItem(itemName, removeQuantity)}>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() => {
+              removeItem(itemName, removeQuantity);
+              handleCloseModal();
+            }}
+            sx={{ marginTop: 2 }}
+          >
             Remove Item
+          </Button>
+        </Box>
+      </Modal>
+
+      {/* Authentication Modal */}
+      <Modal open={openAuthModal} onClose={handleCloseModal}>
+        <Box
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          sx={{
+            width: '80vw',
+            maxWidth: '500px',
+            height: '50vh',
+            backgroundColor: '#fff',
+            margin: 'auto',
+            borderRadius: 2,
+            padding: 2,
+            boxShadow: 3,
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        >
+          <Typography variant="h6" gutterBottom>
+            {authMode === 'signin' ? 'Sign In' : 'Sign Up'}
+          </Typography>
+          <TextField
+            label="Email"
+            type="email"
+            variant="outlined"
+            value={authData.email}
+            onChange={(e) => setAuthData({ ...authData, email: e.target.value })}
+            fullWidth
+            margin="normal"
+          />
+          <TextField
+            label="Password"
+            type="password"
+            variant="outlined"
+            value={authData.password}
+            onChange={(e) => setAuthData({ ...authData, password: e.target.value })}
+            fullWidth
+            margin="normal"
+          />
+          {authMode === 'signup' && (
+            <TextField
+              label="Confirm Password"
+              type="password"
+              variant="outlined"
+              value={authData.confirmPassword}
+              onChange={(e) => setAuthData({ ...authData, confirmPassword: e.target.value })}
+              fullWidth
+              margin="normal"
+            />
+          )}
+          {authError && (
+            <Typography color="error" variant="body2" sx={{ marginTop: 1 }}>
+              {authError}
+            </Typography>
+          )}
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleAuthSubmit}
+            sx={{ marginTop: 2 }}
+          >
+            {authMode === 'signin' ? 'Sign In' : 'Sign Up'}
           </Button>
         </Box>
       </Modal>
