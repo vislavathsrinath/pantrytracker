@@ -32,4 +32,6 @@ if (typeof window !== 'undefined') {
 const auth = getAuth(app);
 const firestore = getFirestore(app);
 
-export { app, analytics, firestore, auth };
+const analytics = getAnalytics(app);
+
+export { firestore, auth };
